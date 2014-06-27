@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt # A plotting framework similar to MATLAB
 def main(argv):
 
 	print "This is awesome!!!<3"
+	for i in range(10):
+		print i
 	
 	
 	
