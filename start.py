@@ -1,5 +1,6 @@
 
 from __future__ import division     # To assure that division between two integers gives a sensible result
+import sys
 import numpy  as np                 # A (big) library for doing array oriented numerics
 import scipy.io as io
 import matplotlib as mpl            # A plotting framework 
