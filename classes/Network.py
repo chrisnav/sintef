@@ -12,7 +12,7 @@ class Network:
 		for node in nodeList: ##Add all the nodes
 			self.addNode(node)
 	
-		branchList=resultsDict['branches'] ##Assume this is of the form: [from (node number), to (node number)]
+		branchList=resultsDict['branches'] ##Assume this is of the form: [from (node number), to (node number),flow from 1->2, flow from 2->1]
 	
 		for branch in branchList: ##Add all branches (connections) in the network, with initial flow = 0
 			index_from=self.findNode(branch[0])
@@ -29,25 +29,58 @@ class Network:
 			node_to.addNewConnection(branch[0],0.0)  
 		
 		
-		self.timeseriesGeneration=resultsDict['generation'] ##Assume this is of the form [[node numb, sampled gen. values for this node],...]
+		self.timeseriesGen=resultsDict['generation'] ##Assume this is of the form [[node numb, sampled gen. values for this node],...]
 		self.timeseriesLoad=resultsDict['load'] ##Assume this is the sampled generation for all the nodes (row = generation in a node. Every column is one sample, so )
 		
-		
+		self.listOfNodeNrGen = self.timeseriesGeneration[:,0]
+		self.listOfNodeNrLoad = self.timeseriesLoad[:,0]
+
 		
 		
 	def addNode(self, nodeInfo):
 		[number, country] = nodeInfo
-		self.nodes.append(Node.Node(number, country, 0.0, 0.0, 0.0)) ##Set initial load, generation and generation cost to 0
+		self.nodes.append(Node.Node(number, country, 0.0, 0.0)) ##Set initial load, generation and generation cost to 0
 	
 	def findNode(self, nodeNumber):
 		index=0
 		for node in self.nodes:
 			if (node.number==nodeNumber):
-				return index
+				return index           ##Returns the index of the 1. instance
 			index+=1
 		return -1
+	
 		
-	def updateNetwork(self, time): ##Update the network 1 hour (1 timestep). The flow, generation and load is updated in all nodes
+	def updateNetwork(self, time): ##Update the network 1 hour (1 timestep). The flow, generation and load is updated in all nodes. OBS: time should run from 1 to numb_of_samples - 1, not 0 
+		
+		updatedGen=self.timeseriesGen[:,time]  ## Generation in the nodes
+		updatedLoad=self.timeseriesLoad[:,time]	## Load in the nodes
+		
+
+		for node in self.nodes: 
+			nodeNumb=node.number
+			loadIndex=self.listOfNodesLoad.index(nodeNumb)
+			genIndex=self.listOfNodesGen.index(nodeNumb)
+			
+			node.load=updatedLoad[loadIndex]
+			node.generation=updatedGen[genIndex]
+			
+			for branches in node.connections:
+				pass
+				# node.updateFlow()
+		
+		
+		
+		
+		
+		
+	
+	
+	
+	
+	
+	
+	
+	
 		
 		
 	

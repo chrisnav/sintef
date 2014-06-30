@@ -1,10 +1,9 @@
 class Node:
-	def __init__ (self, number, country, load, generation, genCost):
+	def __init__ (self, number, country, load, generation):
 		self.country=country ##String with the name of the country the node is placed in (e.g. "Norway")
 		self.number=number ##Int which is the node number
 		self.load=load    ##Load in the node (as in power demand)
 		self.generation=generation ##
-		self.genCost=genCost
 		self.connections=[]
 	
 	def calcProfit(self):
