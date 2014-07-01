@@ -6,17 +6,25 @@ import scipy.io as io
 import matplotlib as mpl            # A plotting framework 
 #from matplotlib import rc           # Configuration files
 import matplotlib.pyplot as plt # A plotting framework similar to MATLAB
-from classes import Node
+#from classes import Node
 from classes import Network
-	
+# from classes import testingStuff
+
 		
 
 		
 def main(argv):
-	pass
+	nodeList=np.array([np.array([1,'Norway']),np.array([11,'Norway']),np.array([2,"Germany"])])
+	branchList=np.array([np.array([1,11,0.3,0.4,0.8,0.5]), np.array([1,2,1.2,3.1,2.2,2.1]), np.array([11,2,0.3,0.5,1.1,1.0])])
+	resultsLoad=np.array([np.array([1,0.1,0.3,0.2,0.3]),np.array([2,3.2,2.3,1.3,2.0])])
+	resultsGen=np.array([np.array([1,"Hydro",0.3,0.4,0.8,0.5]),np.array([11,'wind',0.9,1.2,1.3,1.2])])
+
+	testDict={'nodes':nodeList, 'branches':branchList,'load':resultsLoad,'generation':resultsGen}
+	#costDict={'wind':0,'hydro':20}
+	network = Network.Network(testDict)
 	
-	
-	
+	for node in network.nodes:
+		print node.number
 	
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -1,86 +1,115 @@
 import Node
+import numpy as np
+
 
 class Network:
 
-	def __init__ (self, filenameInput):  ##input = results.mat file from the simulation     
+	def __init__(self, resultsDict):  ##input = results.mat file from the simulation     
 
-		resultsDict = io.loadmat(filenameInput) ##OBS! I do not know how all of the input will be ordered in this file, so this is more of pseudo code atm...
 		self.nodes=[]  ##List of all the nodes in the network
 		
-		nodeList=resultsDict['nodes'] ## Assume this is of the form: [node number, country]
-				
-		for node in nodeList: ##Add all the nodes
-			self.addNode(node)
+		
+		nodeList=resultsDict['nodes'] ## Assume this is of the form: [[node number(int), country(string)],...]. 
+		branchList=resultsDict['branches'] ##Assume this is of the form: [[from node (int), to node (int),flow time series from 1->2(float)],...]
+
+		resultsLoad=resultsDict['load'] ## Assume this is of the form: [[node number(int), time series of load in the node(float)],...]
+		resultsGen=resultsDict['generation'] ##Assume this is of the form [[node number(int), type(string), time series of generation in the node(float)]],...]
+		
+		sampleSize=len(resultsLoad[0,:])-1 ##Don't count the node number
+		
+		
+		
+		self.addAllNodes(nodeList,resultsLoad,sampleSize)
+		print "Added nodes..."
+		self.addAllGenerators(resultsGen)
+		print "Added generators.."
+		self.addAllBranches(branchList)
+		print "Added branches...Done!"
 	
-		branchList=resultsDict['branches'] ##Assume this is of the form: [from (node number), to (node number),flow from 1->2, flow from 2->1]
 	
-		for branch in branchList: ##Add all branches (connections) in the network, with initial flow = 0
+
+	def addAllNodes(self,nodeList,resultsLoad, sampleSize): ##Add all the nodes
+	
+		for node in nodeList: 
+			nodeNr=int(node[0])
+			nodeCountry=node[1].upper() ##All upper case
+			loadThisNode = self.getLoadTimeseries(nodeNr,resultsLoad,sampleSize) ##Time series of the load in his node, dummyIndex of no use
+			newNode=Node.Node(nodeNr,nodeCountry,loadThisNode)
+
+			self.nodes.append(newNode)
+		
+	
+	def addAllGenerators(self,resultsGen): ##Add all the generators
+		
+		margCostDict=self.createMargCostDict() 
+
+		
+		for generator in resultsGen:  
+			nodeIndex=self.findNode(int(generator[0]))
+			if (nodeIndex==-1):
+				print "Node nr. (%d) not found while adding generators! Skipping to next.." %int(generator[0])
+				continue
+			node=self.nodes[nodeIndex]
+			
+			genType=generator[1]
+			genTimeseries=generator[2:].astype(np.float)
+			
+			node.addNewGenerator(genType,genTimeseries,margCostDict)
+ 
+	
+	def addAllBranches(self,branchList): ##Add all branches (connections)
+		
+		for branch in branchList: 
 			index_from=self.findNode(branch[0])
 			index_to=self.findNode(branch[1])
 			
 			if((index_from==-1) or (index_to==-1)):
-				print "Node does not exist in network!"
+				print "Node does not exist in network! Skipping to next..."
 				continue
 				
 			node_from=self.nodes[index_from]
 			node_to=self.nodes[index_to]
+			flow=branch[2:]
+						
 			
-			node_from.addNewConnection(branch[1],0.0) ##Set initial flow both ways to 0
-			node_to.addNewConnection(branch[0],0.0)  
-		
-		
-		self.timeseriesGen=resultsDict['generation'] ##Assume this is of the form [[node numb, sampled gen. values for this node],...]
-		self.timeseriesLoad=resultsDict['load'] ##Assume this is the sampled generation for all the nodes (row = generation in a node. Every column is one sample, so )
-		
-		self.listOfNodeNrGen = self.timeseriesGeneration[:,0]
-		self.listOfNodeNrLoad = self.timeseriesLoad[:,0]
+			node_from.addNewBranch(node_to,flow) ##This automatically adds a branch in the end node ('node_to') as well. 
+			
 
+	def getLoadTimeseries(self,nodeNr,timeseries, sampleSize): ##Should load be a class of it's own like generators? I don't think so...
+		index=np.where(timeseries[:,0]==nodeNr)[0]
 		
-		
-	def addNode(self, nodeInfo):
-		[number, country] = nodeInfo
-		self.nodes.append(Node.Node(number, country, 0.0, 0.0)) ##Set initial load, generation and generation cost to 0
+		if (index.size!=0):
+			return timeseries[index,1:] ##Return the time series for the node in question 
+			
+		return np.zeros(sampleSize)
+			
 	
-	def findNode(self, nodeNumber):
+	def findNode(self, nodeNumber): ##Returns the index of the 1. instance. If none is found, return -1
 		index=0
 		for node in self.nodes:
 			if (node.number==nodeNumber):
-				return index           ##Returns the index of the 1. instance
+				return index           
 			index+=1
 		return -1
+
 	
+	def createMargCostDict(self):  ##Dictionary to hold all pairs of generator_type - marginal_cost. Can be improved! Like loading in the keywords first and asking the user for the price... 
+		print "Please enter the types of generators in the network with associated marginal cost."
+		print "The input should be separated by a space, like this example: solar 0"
+		print "When all pairs are entered, type in '*' to end."
+
+		dict={} 
+		while True:
+			s=raw_input("Please enter a new pair: ").lower()
+			if s[0]=='*':
+				break
+			[type,margCost]=s.split()
+			dict[type]=float(margCost)
 		
-	def updateNetwork(self, time): ##Update the network 1 hour (1 timestep). The flow, generation and load is updated in all nodes. OBS: time should run from 1 to numb_of_samples - 1, not 0 
+		return dict
+			
 		
-		updatedGen=self.timeseriesGen[:,time]  ## Generation in the nodes
-		updatedLoad=self.timeseriesLoad[:,time]	## Load in the nodes
 		
 
-		for node in self.nodes: 
-			nodeNumb=node.number
-			loadIndex=self.listOfNodesLoad.index(nodeNumb)
-			genIndex=self.listOfNodesGen.index(nodeNumb)
-			
-			node.load=updatedLoad[loadIndex]
-			node.generation=updatedGen[genIndex]
-			
-			for branches in node.connections:
-				pass
-				# node.updateFlow()
-		
-		
-		
-		
-		
-		
-	
-	
-	
-	
-	
-	
-	
-	
-		
 		
 	

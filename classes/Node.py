@@ -1,30 +1,29 @@
+import Branch
+import Generator
+import numpy as np
+
 class Node:
-	def __init__ (self, number, country, load, generation):
-		self.country=country ##String with the name of the country the node is placed in (e.g. "Norway")
-		self.number=number ##Int which is the node number
-		self.load=load    ##Load in the node (as in power demand)
-		self.generation=generation ##
-		self.connections=[]
+
+	def __init__ (self, number, country, load):
+		self.number=number ##A number to label the node
+		self.country=country ##String with the name of the country the node is placed in (e.g. "NORWAY")
+		self.load=load    ##Load in the node given as a time series
+		self.generators=np.array([]) ##To hold all the generators located in the node.
+		self.branches=np.array([]) ##To hold all the branches connecting this node to other nodes
 	
 	def calcProfit(self):
 		pass
 		## calculate the consumer and producer profit for the nodes home country, and calculate consumer profit for the countries who import power from this node
 	
-	def addNewConnection(self,nodeNumber,flow):  ##Connections are one-way! This is FROM the "self-node" TO the node with node number "nodeNumber"
-		self.connections.append([nodeNumber,flow])
+	def addNewBranch(self,toNode,flow):  ##The flow is from this node to node "toNode"
+		newBranch=Branch.Branch(self.number,toNode.number,flow)
+		invBranch=Branch.Branch(toNode.number, self.number, -flow)
+		
+		self.branches=np.append(self.branches, newBranch) ##Should there be some function called to check if the branch already exists?
+		toNode.branches=np.append(toNode.branches,invBranch)
 	
-	def updateFlow(self,nodeNumber,flow):
-		index = connectionIndex(nodeNumber)
-		if(index==-1):
-			print "The branch does not exist!"
-			return			
-		self.connections[index][1]=flow ##Update the flow (from this node to the other)
+	def addNewGenerator(self, type, prod,margCostDict):  
+		newGen = Generator.Generator(type, prod,margCostDict)
+		self.generators=np.append(self.generators,newGen)
 
 	
-	def connectionIndex(self,nodeNumber):
-		index=0
-		for i in self.connections:
-			if(i[0]==nodeNumber):
-				return index 
-			index+=1		
-		return -1
