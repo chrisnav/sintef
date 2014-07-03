@@ -4,7 +4,7 @@ import numpy as np
 
 class Network:
 
-	def __init__(self, resultsDict):  ##input = results.mat file from the simulation     
+	def __init__(self,resultsDict,margCostDict):  ##input = results.mat file from the simulation     
 
 		self.nodes=[]  ##List of all the nodes in the network
 		
@@ -21,14 +21,14 @@ class Network:
 		
 		self.addAllNodes(nodeList,resultsLoad,sampleSize)
 		print "Added nodes..."
-		self.addAllGenerators(resultsGen)
+		self.addAllGenerators(resultsGen,margCostDict)
 		print "Added generators.."
 		self.addAllBranches(branchList)
 		print "Added branches...Done!"
 	
 	
 
-	def addAllNodes(self,nodeList,resultsLoad, sampleSize): ##Add all the nodes
+	def addAllNodes(self,nodeList,resultsLoad,sampleSize): ##Add all the nodes
 	
 		for node in nodeList: 
 			nodeNr=int(node[0])
@@ -39,9 +39,9 @@ class Network:
 			self.nodes.append(newNode)
 		
 	
-	def addAllGenerators(self,resultsGen): ##Add all the generators
+	def addAllGenerators(self,resultsGen,margCostDict): ##Add all the generators
 		
-		margCostDict=self.createMargCostDict() 
+		# margCostDict=self.createMargCostDict() 
 
 		
 		for generator in resultsGen:  
@@ -75,7 +75,7 @@ class Network:
 			node_from.addNewBranch(node_to,flow) ##This automatically adds a branch in the end node ('node_to') as well. 
 			
 
-	def getLoadTimeseries(self,nodeNr,timeseries, sampleSize): ##Should load be a class of it's own like generators? I don't think so...
+	def getLoadTimeseries(self,nodeNr,timeseries,sampleSize): ##Should load be a class of it's own like generators? I don't think so...
 		index=np.where(timeseries[:,0]==nodeNr)[0]
 		
 		if (index.size!=0):
@@ -84,7 +84,7 @@ class Network:
 		return np.zeros(sampleSize)
 			
 	
-	def findNode(self, nodeNumber): ##Returns the index of the 1. instance. If none is found, return -1
+	def findNode(self,nodeNumber): ##Returns the index of the 1. instance. If none is found, return -1
 		index=0
 		for node in self.nodes:
 			if (node.number==nodeNumber):
@@ -93,23 +93,19 @@ class Network:
 		return -1
 
 	
-	def createMargCostDict(self):  ##Dictionary to hold all pairs of generator_type - marginal_cost. Can be improved! Like loading in the keywords first and asking the user for the price... 
-		print "Please enter the types of generators in the network with associated marginal cost."
-		print "The input should be separated by a space, like this example: solar 0"
-		print "When all pairs are entered, type in '*' to end."
+	# def createMargCostDict(self):  ##Dictionary to hold all pairs of generator_type - marginal_cost. Can be improved! Like loading in the keywords first and asking the user for the price... 
 
-		dict={} 
-		while True:
-			s=raw_input("Please enter a new pair: ").lower()
-			if s[0]=='*':
-				break
-			[type,margCost]=s.split()
-			dict[type]=float(margCost)
+		# print "Please enter the types of generators in the network with associated marginal cost."
+		# print "The input should be separated by a space, like this example: solar 0"
+		# print "When all pairs are entered, type in '*' to end."
+
+		# dict={} 
+		# while True:
+			# s=raw_input("Please enter a new pair: ").lower()
+			# if s[0]=='*':
+				# break
+			# [type,margCost]=s.split()
+			# dict[type]=float(margCost)
 		
-		return dict
+		# return dict
 			
-		
-		
-
-		
-	
