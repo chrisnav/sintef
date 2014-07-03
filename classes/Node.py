@@ -4,13 +4,18 @@ import numpy as np
 
 class Node:
 
+	rationPrice=1000
+	
 	def __init__ (self, number, country, load):
 		self.number=number ##A number to label the node
 		self.country=country ##String with the name of the country the node is placed in (e.g. "NORWAY")
-		self.load=load    ##Load in the node given as a time series
+		self.load=load    ##Load in the node given as a time series 
 		self.generators=[] ##To hold all the generators located in the node.
 		self.branches=np.array([]) ##To hold all the branches connecting this node to other nodes
-
+		self.consumerSurplus=0
+		self.producerSurplus=0
+		#self.nodePrice=nodePrice
+	
 	
 	def addNewBranch(self,toNode,flow):  ##The flow is from this node to node "toNode"
 		newBranch=Branch.Branch(self.number,toNode.number,flow)
@@ -24,46 +29,24 @@ class Node:
 		self.generators.append(newGen)
 		
 		
-	def calcProducerSurplus(self):
-		##Take care of import first
-		
-		# sampleSize=len(self.branches[0].flow)
-		
-		# powerExport=np.zeros(sampleSize)
-		# powerImport=np.zeros(sampleSize)
-
-		# prodSurplus=0
-		
-		# for branch in self.branches:
-			# branchFlow=branch.flow
-			# powerExport += filter(lambda x: x>0,branchFlow)
-			# powerImport -= filter(lambda x: x<0,branchFlow) ##All negative values!
-		
+	def calcNodeSurplus(self,listOfAllNodes):
 				
-		# powerNeeded = self.load+powerExport+powerImport ##The total power that needs to be produced in the node as a time series
+		##Calculate the producer surplus
+		for producer in self.generators:
+			production = producer.prod
+			self.producerSurplus+=np.sum(production*(self.nodePrice-producer.margCost)) ##production*price difference = prod. surplus
 		
-		# self.generators.sort(key=lambda x: x.margCost) ##Sort the list of generators from low to high marginal cost
+		##Calculate the consumer surplus in the node
+		self.consumerSurplus += np.sum(self.load*(rationPrice-self.nodePrice))
 		
-		# for producer in self.generators:
-		
-			# priceDiff = self.nodePrice-producer.margCost	##nodePrice should be a time series (np.array)
-			# producerProd = producer.prod
-			
-			# prodSurplus=(producerProd>powerNeeded)*priceDiff*powerNeeded + 
-			
-			
-			# if(producerProd>powerNeeded):
-				# prodSurplus+=priceDiff*powerNeeded
-				# powerNeeded=0
-				# break
-
-			# prodSurplus += priceDiff*producerProd
-			# powerNeeded -= producerProd
-
-
-
-
-
-					
+		##Calculate export
+		for branch in self.branches:
+			export += branch.flow*(branch.flow>0) ##The hours with positive flow (export) remain, the rest (import) are set to 0.
+			exportToNode=filter(lambda x: x.number==branch.toNode, listOfAllNodes)[0] ##Find the node receiving the exported power 
+			branch.cableOwnerProfit += np.sum(export*(exportToNode.nodePrice-self.nodePrice)) ##The profit made by the owners of the cable due to export to a high-price area  
 				
-				
+	
+
+
+
+			

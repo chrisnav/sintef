@@ -44,12 +44,8 @@ class Network:
 		# margCostDict=self.createMargCostDict() 
 
 		
-		for generator in resultsGen:  
-			nodeIndex=self.findNode(int(generator[0]))
-			if (nodeIndex==-1):
-				print "Node nr. (%d) not found while adding generators! Skipping to next.." %int(generator[0])
-				continue
-			node=self.nodes[nodeIndex]
+		for generator in resultsGen:  			
+			node=filter(lambda x: x.number==int(generator[0]),self.nodes)[0]
 			
 			genType=generator[1]
 			genTimeseries=generator[2:].astype(np.float)
@@ -60,17 +56,11 @@ class Network:
 	def addAllBranches(self,branchList): ##Add all branches (connections)
 		
 		for branch in branchList: 
-			index_from=self.findNode(branch[0])
-			index_to=self.findNode(branch[1])
-			
-			if((index_from==-1) or (index_to==-1)):
-				print "Node does not exist in network! Skipping to next..."
-				continue
 				
-			node_from=self.nodes[index_from]
-			node_to=self.nodes[index_to]
-			flow=branch[2:]
-						
+			node_from=filter(lambda x: x.number==branch[0],self.nodes)[0]
+			node_to=filter(lambda x: x.number==branch[1],self.nodes)[0]
+
+			flow=branch[2:]						
 			
 			node_from.addNewBranch(node_to,flow) ##This automatically adds a branch in the end node ('node_to') as well. 
 			
@@ -84,14 +74,35 @@ class Network:
 		return np.zeros(sampleSize)
 			
 	
-	def findNode(self,nodeNumber): ##Returns the index of the 1. instance. If none is found, return -1
-		index=0
-		for node in self.nodes:
-			if (node.number==nodeNumber):
-				return index           
-			index+=1
-		return -1
+	def calcSurplus(self): ##What about the branch owner profits?
+		
+		consumerSurplusDict={}
+		producerSurplusDict={}
+		#branchOwnerProfitDict={}
+		
+		for node in self.nodes:			
+			node.calcNodeSurplus(self.nodes)
+			country=node.country
+			
+			if (country not in consumerSurplusDict.keys()):
+				consumerSurplusDict[country]=node.consumerSurplus
+				producerSurplusDict[country]=node.producerSurplus
+			else:
+				consumerSurplusDict[country]+= node.consumerSurplus
+				producerSurplusDict[country]+= node.producerSurplus
+				
+		
+		return[consumerSurplusDict, producerSurplusDict]
 
+		
+	def plotSurplus(self):
+		pass
+		
+		
+		
+		
+		
+		
 	
 	# def createMargCostDict(self):  ##Dictionary to hold all pairs of generator_type - marginal_cost. Can be improved! Like loading in the keywords first and asking the user for the price... 
 

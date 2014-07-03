@@ -6,10 +6,10 @@ import scipy.io as io
 import matplotlib as mpl            # A plotting framework 
 #from matplotlib import rc           # Configuration files
 import matplotlib.pyplot as plt # A plotting framework similar to MATLAB
-#from classes import Node
+from classes import Node
 from classes import Network
 from classes import Generator
-# from classes import testingStuff
+from classes import testingStuff
 
 		
 
@@ -24,12 +24,11 @@ def main(argv):
 	#costDict={'wind':0,'hydro':20,'oil':150}
 	# network = Network.Network(testDict,costDict)
 	
+	# node1=Node.Node(1,'NORWAY',np.array([0,1,2]))
+	# node2=Node.Node(2,'GERMANY',np.array([0,2,3]))
 
-	list=np.array([1,-2,3,-4,-5,6,8,-9])
-	list2=np.array([1,2,3,4,5,6,7,8])
-	
-	print (list<0)*4
-	
-	
+	test1=testingStuff.testingStuff()
+	test2=testingStuff.testingStuff()
+
 if __name__ == "__main__":
     main(sys.argv[1:])
