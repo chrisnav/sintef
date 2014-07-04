@@ -2,55 +2,55 @@ import Node
 import numpy as np
 
 
-class Network:
+class Network:  ##A class to keep track of all nodes in the network
 
-	def __init__(self,resultsDict,margCostDict):  ##input = results.mat file from the simulation     
+	def __init__(self,resultsDict):  
 
 		self.nodes=[]  ##List of all the nodes in the network
 		
 		
-		nodeList=resultsDict['nodes'] ## Assume this is of the form: [[node number(int), country(string)],...]. 
+		nodeList=resultsDict['nodes'] ## Assume this is of the form: [[node number(int), country(string), time series of node price],...]. 
 		branchList=resultsDict['branches'] ##Assume this is of the form: [[from node (int), to node (int),flow time series from 1->2(float)],...]
 
-		resultsLoad=resultsDict['load'] ## Assume this is of the form: [[node number(int), time series of load in the node(float)],...]
-		resultsGen=resultsDict['generation'] ##Assume this is of the form [[node number(int), type(string), time series of generation in the node(float)]],...]
+		loadList=resultsDict['load'] ## Assume this is of the form: [[node number(int), time series of load in the node(float)],...]
+		genList=resultsDict['generation'] ##Assume this is of the form [[node number(int), marginal cost (float), time series for this generator(float)]],...]
 		
-		sampleSize=len(resultsLoad[0,:])-1 ##Don't count the node number
+		sampleSize=len(loadList[0,:])-1 ##Don't count the node number
 		
 		
 		
-		self.addAllNodes(nodeList,resultsLoad,sampleSize)
+		self.addAllNodes(nodeList,loadList,sampleSize)
 		print "Added nodes..."
-		self.addAllGenerators(resultsGen,margCostDict)
+		self.addAllGenerators(genList)
 		print "Added generators.."
 		self.addAllBranches(branchList)
 		print "Added branches...Done!"
 	
 	
 
-	def addAllNodes(self,nodeList,resultsLoad,sampleSize): ##Add all the nodes
+	def addAllNodes(self,nodeList,loadList,sampleSize): ##Add all the nodes
 	
 		for node in nodeList: 
 			nodeNr=int(node[0])
-			nodeCountry=node[1].upper() ##All upper case
-			loadThisNode = self.getLoadTimeseries(nodeNr,resultsLoad,sampleSize) ##Time series of the load in his node, dummyIndex of no use
-			newNode=Node.Node(nodeNr,nodeCountry,loadThisNode)
+			nodeCountry=node[1].upper() ##All upper case because it's cool
+			nodePrice=node[2:].astype(np.float)
+			
+			loadThisNode = self.getLoadTimeseries(nodeNr,loadList,sampleSize) ##Time series of the load in his node, dummyIndex of no use
+			newNode=Node.Node(nodeNr,nodeCountry,loadThisNode,nodePrice)
 
 			self.nodes.append(newNode)
 		
 	
-	def addAllGenerators(self,resultsGen,margCostDict): ##Add all the generators
+	def addAllGenerators(self,genList): ##Add all the generators
 		
-		# margCostDict=self.createMargCostDict() 
-
 		
-		for generator in resultsGen:  			
+		for generator in genList:  			
 			node=filter(lambda x: x.number==int(generator[0]),self.nodes)[0]
 			
-			genType=generator[1]
-			genTimeseries=generator[2:].astype(np.float)
+			genCost=generator[1]
+			genTimeseries=generator[2:]
 			
-			node.addNewGenerator(genType,genTimeseries,margCostDict)
+			node.addNewGenerator(genCost,genTimeseries)
  
 	
 	def addAllBranches(self,branchList): ##Add all branches (connections)
@@ -74,32 +74,28 @@ class Network:
 		return np.zeros(sampleSize)
 			
 	
-	def calcSurplus(self): ##What about the branch owner profits?
+	def calcSurplus(self): 
 		
 		consumerSurplusDict={}
 		producerSurplusDict={}
-		#branchOwnerProfitDict={}
+		cableOwnerProfit = 0
 		
 		for node in self.nodes:			
 			node.calcNodeSurplus(self.nodes)
 			country=node.country
 			
-			if (country not in consumerSurplusDict.keys()):
+			if (country not in consumerSurplusDict.keys()): ##Add the country if it doesn't already exist 
 				consumerSurplusDict[country]=node.consumerSurplus
 				producerSurplusDict[country]=node.producerSurplus
 			else:
 				consumerSurplusDict[country]+= node.consumerSurplus
 				producerSurplusDict[country]+= node.producerSurplus
-				
+			
+			for branch in node.branches:
+				cableOwnerProfit += branch.cableOwnerProfit
 		
-		return[consumerSurplusDict, producerSurplusDict]
-
-		
-	def plotSurplus(self):
-		pass
-		
-		
-		
+		return[consumerSurplusDict, producerSurplusDict, cableOwnerProfit]
+	
 		
 		
 		
@@ -119,4 +115,4 @@ class Network:
 			# dict[type]=float(margCost)
 		
 		# return dict
-			
+	
