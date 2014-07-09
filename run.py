@@ -33,129 +33,146 @@ def main(argv):
 	# print cons
 	# print prod
 	# print net
-
+	
+	
 	nodeList=[]
 	branchList=[]
 	loadList=[]
 	genList=[]
 	
 	matFilePath='C:\\Users\\christiann\\Desktop\\NetOp_Toolbox\\Net-Op DTOC 64bit 2013-02-15\\results_casestudy_meshed\\results.mat'
-	xmlFilePath='C:\Users\christiann\Desktop\NetOp_Toolbox\Net-Op DTOC 64bit 2013-02-15\case_NorthSea_meshed.xml'
+	xmlFilePath='C:\\Users\\christiann\\Desktop\\NetOp_Toolbox\\Net-Op DTOC 64bit 2013-02-15\\results_casestudy_meshed\\case_auto.xml'   ##The auto-generated xml file where all the new nodes and branches are also listed
 
 	mat=io.loadmat(matFilePath)
 	results=mat['results'][0][0]	
 	
-	nodeInput=getInput(xmlFilePath,'node')   ##OBS!!These do not contain all the new nodes and branches that are added in the Netop optimization!
-	branchInput=getInput(xmlFilePath,'branch') ##Only the 28 original branches, the 6 newest branches are not here!
-	loadInput=getInput(xmlFilePath,'base_load')
-	genInput=getInput(xmlFilePath,'base_geno')
-	
+	nodeInput=getInput(xmlFilePath,'node')   ##Contains all _allowable_ nodes, needs to be cut (see below)
+	branchInput=getInput(xmlFilePath,'branch') ##Contains all _allowable_ branches, needs to be cut (see below)
+	#loadInput=getInput(xmlFilePath,'base_load') ##All load nodes (no cutting needed)
+	genInput=getInput(xmlFilePath,'base_geno') ##All generators (no cutting needed)
+
 	totFlow=addFlows(results[6],results[7]) ##Combine the in- and out flow
-	totFlow=removeDeadBranches(totFlow) ##Remove branches that are not used (0 flow for all times) 
+	branchesToRemove=getDeadBranches(totFlow) ##Find branches that are not used (0 flow for all times) 
+
+	totFlow=cutDeadBranches(branchesToRemove,totFlow) ##Remove dead branches from both the flow and list of branches
+	branchInput=cutDeadBranches(branchesToRemove,branchInput)
 	
-	generation=zip(*results[10])	##Time series of generation
+	nodeInput=cutDeadNodes(branchInput,nodeInput)  ##Remove dead (not connected) nodes on the basis of the trimmed branch list
 	
-	for node in nodeInput:
-		newNode=[int(node[0])] ##Add node number. The country name should also be added here!
-		nodeList.append(newNode)
-		
+	
+	generation=map(list,zip(*results[10]))	##Time series of generation. Transposed and converted to list of lists to be in the right format (every row is a generator)
+
+	
+
+	
 	for i in range(len(branchInput)):  
-		newBranch=[int(branchInput[i][0]), int(branchInput[i][1]),totFlow[i]] ##Add to-from node numbers and flow
+		newBranch=[int(branchInput[i][0]), int(branchInput[i][1])] + totFlow[i]	##Add the to and from node numbers and time series flow
 		branchList.append(newBranch)
-		
-	for load in loadInput:
-		newLoad=[int(load[0])] ##Add node number
-		loadList.append(newLoad)
 	
 	for i in range(len(genInput)):
-		newGen=[int(genInput[i][0]), float(genInput[i][3]), generation[i]]	##Add node number and marginal cost
-		genList.append(newGen)
+		newGen=[int(genInput[i][0]), float(genInput[i][3])] + generation[i]	##Add node number, marginal cost and time series
+		genList.append(newGen) ##Add generator to list
+	
+	# for load in loadInput:
+		# newLoad=[int(load[0])] ##Add node number. Time series is created below in createLoad
+		# loadList.append(newLoad)
 		
-
-
-#	loadList=createLoad(nodeList,branchList,genList)
+	#loadList=createLoad(loadList,branchList,genList) ##Add the load
+	
+	dict={1:'belgium',2:'germany',3:'denmark',4:'england',5:'england',6:'netherlands',7:'norway',21:'belgium',22:'germany',23:'denmark',24:'england',25:'england',26:'netherlands',27:'norway',28:'germany',29:'denmark',30:'germany',31:'netherlands',91:'norway',92:'denmark',93:'germany',94:'netherlands',95:'belgium',96:'england',102:'germany',103:'denmark',107:'norway'}
+	
+	for node in nodeInput:
+		nodeNumber=int(node[0])
+		country=dict[nodeNumber]
+		
+		newNode=[nodeNumber, country] ##Add node number and country
+		nodeList.append(newNode)
+	
+	resultsDict={'nodes':nodeList, 'branches':branchList, 'generation':genList}
+	
+	northSea=Network.Network(resultsDict)
 	
 	
-	
-	
-	
-
 
 	
-
 	
-	##Convert to np.array after all manipulations are done...Or should it be don inside Network?
-
-def removeDeadBranches(branchInput):
-
+def getDeadBranches(flowInput): ##The flow should be the combined flow 
 
 	deadBranches=[]
 
-	for i in range(len(branchInput)):
-		if(not any(branchInput[i])):
-			deadBranches.append(i)
+	for i in range(len(flowInput)):
+		if(not any(flowInput[i])): ##If the flow is 0 for all time steps, the branch is dead
+			deadBranches.append(i) ##Put the row number of the dead branch in the list
 
-	for row in deadBranches[::-1]:
-			branchInput.pop(row)
+	
+	return deadBranches
+	
 
+def cutDeadBranches(deadRows,listToBeCut):
+	
+	for row in deadRows[::-1]: ##Pop the branches at the back first to avoid messing up the indexing
+		listToBeCut.pop(row)
+		
+	return listToBeCut
+	
+	
+def cutDeadNodes(trimmedBranchInput,nodeInput): ##Branch list should already be cut
+	
+	safeNodes=[]
+	for branch in trimmedBranchInput:
+		safeNodes+=[int(branch[0]),int(branch[1])] ##Put node numbers of all nodes that are connected (not to be removed) in a list
+		 
+	
+	return filter(lambda x: int(x[0]) in safeNodes, nodeInput) ##Find all nodes with node number in the safeNodes list. Filter away the dead ones
+	
 
-	return branchInput
+# def createLoad(loadList,branchList,genList): ##Function to generate the load time series for all nodes based on power conservation in every node.
 	
-	
-def createLoad(nodeList,branchList,genList): ##Function to generate the load time series for all nodes based on power conservation in every node.
-	
-	
-	######### OBS! THIS FUNCTION SHOULD BE DEBUGGED! ###############
-	
-	load=[]
-	
-	for node in nodeList:
-		l=[]
-		nodeNr=node[0]
-		allGenInNode=filter(lambda x: x[0]==nodeNr, genList) ##List of lists where every row represents a generator in the node
-		branchesToNode=filter(lambda x: x[1]==nodeNr, branchList) ##List of list where every row represents a branch where the node is marked as the receiver
-		branchesFromNode=filter(lambda x: x[0]==nodeNr, branchList)##List of list where every row represents a branch where the node is marked as the sender
+	#Function tried and tested
+			
+	# for i in range(len(loadList)):
+
+		# nodeNr=loadList[i][0]
+		# allGenInNode=filter(lambda x: x[0]==nodeNr, genList) ##List of lists where every row represents a generator in the node
+		# branchesToNode=filter(lambda x: x[1]==nodeNr, branchList) ##List of list where every row represents a branch where the node is marked as the receiver
+		# branchesFromNode=filter(lambda x: x[0]==nodeNr, branchList)##List of list where every row represents a branch where the node is marked as the sender
 		
-		l.append(nodeNr) ##Add the node number first
+		# totGenNode=[]
+		# totFlow=[]
+		# transposeToNode=map(list,zip(*branchesToNode))		##zip to transpose, map to change type from tuple to list
+		# transposeFromNode=map(list,zip(*branchesFromNode))
+		# transposeGen=map(list,zip(*allGenInNode))			##Transpose to make it easy to sum up all columns (which are rows when transposed)
 		
-		totGenNode=[]
-		totFlow=[]
-		transposeToNode=zip(*branchesToNode)
-		transposeFromNode=zip(*branchesFromNode)
-		transposeGen=zip(*allGenInNode)	##Transpose to make it easy to sum up all columns (which are rows when transposed)
+		# sampleSize=max(len(transposeToNode),len(transposeFromNode),len(transposeGen))
 		
-		############################
-		############################
-		###THERE ARE PROBLEMS HERE! What if one of the branch lists are empty?
-		############################
-		############################
-		length=np.max(len(transposeGen[0][2]),len(transposeFromNode[0][3]))
-		print transposeGen
-		print transposeToNode
-		print transposeFromNode
-		
-		for j in range(len(transposeGen[0][2])): 
-	
-			totGenNode.append(sum(transposeGen[j][0])) ##Add the sum of all the generators at every sample point
-			totFlow.append(sum(transposeToNode[j][0])-sum(transposeFromNode[j][0])) ##Add the net power _increase_ due to flow at every point in time (positive number -> node imports power, negative -> export)
+		# if(len(transposeToNode)==0):   			##If one of the lists are empty (ie no generation in the node), make a list of zeros
+			# transposeToNode=[[0]]*sampleSize
+		# if(len(transposeGen)==0): 				##This might not be necessary, since there is always generation in load nodes (in my case, anyway) 
+			# transposeGen=[[0]]*sampleSize
+		# if(len(transposeFromNode)==0):
+			# transposeFromNode=[[0]]*sampleSize		
+
+		# for j in range(2,sampleSize): 
+			# totGenNode.append(sum(transposeGen[j])) ##Add the sum of all the generators at every sample point
+			# totFlow.append(sum(transposeToNode[j])-sum(transposeFromNode[j])) ##Add the net power _increase_ due to flow at every point in time (positive number -> node imports power, negative -> export)
 
 		
-		for i in range(len(totFlow)):
-			l.append(totGenNode[i]+totFlow[i]) ##Generation + power imported = load (export is negative import)
-		
-		load.append(l) ##Finally add the node with its load time series to the list
-	
-	return load
+		# for k in range(len(totFlow)):
+			# loadList[i].append(totGenNode[k]+totFlow[k]) ##Generation + power imported = load (export is negative import)
+				
+
+	# return loadList
 	
 	
 def addFlows(flowIn, flowOut): ##Combine the incoming and outgoing flows into one.
-	flowInT=zip(*flowIn) ##Transpose
-	flowOutT=zip(*flowOut)
+	flowInT=map(list,zip(*flowIn)) ##Transpose
+	flowOutT=map(list,zip(*flowOut))
 	flow=[]
+
 	samples=len(flowInT[0])
 	
 	for i in range(len(flowInT)): ##Rows
-		f=[]
+		f=[]		
 		for j in range(samples): ##Cols
 			f.append(flowInT[i][j]-flowOutT[i][j]) ##The net flow in the branch
 		
@@ -190,6 +207,16 @@ def getInput(xmlFile,keyWord): ##To get the info from the xml input file. Assume
 	return lines
 	
 
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 
 if __name__ == "__main__":
     main(sys.argv[1:])
