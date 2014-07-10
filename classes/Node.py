@@ -27,6 +27,13 @@ class Node:
 
 	def calcLoad(self): ##Calculates the load in the node
 	
+		##OBS! In the case of generators with variable production (wind, solar...), any harvested power	
+		##that is not actually needed/used will be counted as a load! This is because this function 
+		##assumes that power is conserved in every node (flow in + generation = load + flow out).
+		##This will however not be a problem when summing up all load and generation in a zone,
+		##the 'fake' load will be absorbed by the 'fake' production.
+	
+	
 		sampleSize=len(self.branches[0].flow) 
 		
 		totGen=np.zeros(sampleSize)
