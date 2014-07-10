@@ -7,17 +7,15 @@ class Network:  ##A class to keep track of all nodes in the network
 	def __init__(self,resultsDict):  
 
 		self.nodes=[]  ##List of all the nodes in the network
-		
+		self.nodesByZones={} ##Dict to organize the nodes by zone (country) (key=country name as string, value=list of Nodes)
+		self.zoneSurplus={}	 ##Dict to hold surplus (key=country name as string, value=[producerSurplus,consumerSurplus])
+		self.zonePrices={} 	##Dict to hold the zone prices (key=country name as string, value=time series of zone price as np.array)
+		self.congestionRent=0 ##Total congestion rent between zones
 		
 		nodeList=resultsDict['nodes'] ## Assume this is of the form: [[node number(int), country(string)],...]. 
 		branchList=resultsDict['branches'] ##Assume this is of the form: [[from node (int), to node (int),flow time series from 1->2(float)],...]
-
-	#	loadList=resultsDict['load'] ## Assume this is of the form: [[node number(int), time series of load in the node(float)],...]
 		genList=resultsDict['generation'] ##Assume this is of the form [[node number(int), marginal cost (float), time series for this generator(float)]],...]
-		
-	#	sampleSize=len(loadList[0,:])-1 ##Don't count the node number
-		
-		
+				
 		
 		self.addAllNodes(nodeList)
 		print "Added nodes..."
@@ -28,26 +26,28 @@ class Network:  ##A class to keep track of all nodes in the network
 		
 		for node in self.nodes:
 			node.calcLoad()
-			node.calcNodalPrice()   ##Not yet implemented!!
+		print "Calculated load in all nodes..."
+		
+		self.calcTotalSurplus()
+		print "Calculated the consumer and producer surplus in all zones..."
 
-		print "Calculated load and nodal prices in all nodes...Done!"
-
+		self.calcCongestionRent()
+		print "Calculated the total congestion rent between countries...Done!"
 	
 	
 	
-	def addAllNodes(self,nodeList): ##Add all the nodes
+	
+	def addAllNodes(self,nodeList): ##Add all nodes in the network
 	
 		for node in nodeList: 
 			nodeNr=int(node[0])
 			nodeCountry=node[1].upper() ##All upper case because it's cool
-			#nodePrice=np.array(node[2:].astype(np.float))
 			
-			#loadThisNode = self.getLoadTimeseries(nodeNr,loadList,sampleSize) ##Time series of the load in his node, dummyIndex of no use
 			newNode=Node.Node(nodeNr,nodeCountry)
 			self.nodes.append(newNode)
 		
 	
-	def addAllGenerators(self,genList): ##Add all the generators
+	def addAllGenerators(self,genList): ##Add all generators in the network
 		
 		
 		for generator in genList:  			
@@ -59,7 +59,7 @@ class Network:  ##A class to keep track of all nodes in the network
 			node.addNewGenerator(genCost,genTimeseries)
  
 	
-	def addAllBranches(self,branchList): ##Add all branches (connections)
+	def addAllBranches(self,branchList): ##Add all branches (connections) in the network
 		
 		for branch in branchList: 
 				
@@ -71,37 +71,106 @@ class Network:  ##A class to keep track of all nodes in the network
 			node_from.addNewBranch(node_to,flow) ##This automatically adds a branch in the end node ('node_to') as well. 
 			
 
-	# def getLoadTimeseries(self,nodeNr,timeseries,sampleSize): ##Should load be a class of it's own like generators? I don't think so...
-		# index=np.where(timeseries[:,0]==nodeNr)[0]
+	def calcTotalSurplus(self): ##Calculate the surplus for each zone in the network 
 		
-		# if (index.size!=0):
-			# return timeseries[index,1:] ##Return the time series for the node in question 
+		for node in self.nodes: ##Make a dict organizing all nodes according to zone
+			if(node.country not in self.nodesByZones.keys()):
+				self.nodesByZones[node.country]=[node]
+				continue
 			
-		# return np.zeros(sampleSize)
+			self.nodesByZones[node.country].append(node)
+			
+
+
+		for zone in self.nodesByZones:
+			
+			nodesInZone = self.nodesByZones[zone] ##All nodes in the zone
+			sampleSize=len(nodesInZone[0].load)
+			
+			allGenerators=[] 
+			totGen=np.zeros(sampleSize)
+			
+			for node in nodesInZone: 
+				allGenerators+=node.generators  ##List of all generators in the zone
+			
+			for gen in allGenerators:
+				totGen+=gen.prod
+			
+			
+			zonePrice=self.calcZonePrice(allGenerators,sampleSize) ##Calculate the zone price.
+			self.zonePrices[zone]=zonePrice
+			
+			# if(zone=="NORWAY"):
+				# print zonePrice
+				# print ""
+				
+				# for gen in allGenerators:
+					# print gen.margCost
+					# print gen.prod
+					# print ""
+
+
+			[producerSurplus,consumerSurplus]=self.calcZoneSurplus(totGen,zonePrice,allGenerators,500) ##Ration price set to 500 euro/MW
+			
+			self.zoneSurplus[zone]=[producerSurplus,consumerSurplus] ##Add to network dictionary
+			
+
+	def calcZonePrice(self, allGenerators, sampleSize):	##Calculate the zone price
+	
+		allGenerators.sort(key=lambda x: x.margCost) ##Sort the generators from lowest to highest marginal cost
+		numbOfGen=len(allGenerators)
+		zonePrice=[]
+			
+		for time in range(sampleSize): ##We need the zone price at every time step
+			alreadyAdded=False
+			for i in range(numbOfGen):
+				gen=allGenerators[i]
+				if (gen.margCost==0): ##Skip past all generators with 0 marginal cost, they have variable production which might be 0 even though the zone produces more expensive power 
+					continue
+				if(gen.prod[time]==0.0): ##The first generator that produces 0 power (and is not of variable production) is the first generator that has too high a price. The marginal cost of the previous one will be the zone price 
+					zonePrice.append(allGenerators[i-1].margCost)
+					alreadyAdded=True
+					break 			##Go to the next timestep
+			
+			if(not alreadyAdded):
+				zonePrice.append(allGenerators[numbOfGen].margCost) ##If all generators are producing, the one with the highest price will set the zone price
+		
+		return np.array(zonePrice)
 			
 	
-	def calcSurplus(self): 
+	def calcZoneSurplus(self,totGen,zonePrice,allGenerators,rationPrice): ##Calculate the zone surplus
 		
-		consumerSurplusDict={}
-		producerSurplusDict={}
-		cableOwnerProfit = 0
 		
-		for node in self.nodes:			
-			node.calcNodeSurplus(self.nodes)
-			country=node.country
+		producerSurplus=0
+		
+		for gen in allGenerators:
+			production = gen.prod
+			producerSurplus+=np.sum(production*(zonePrice-gen.margCost))		
+		
+		consumerSurplus=np.sum(totGen*(rationPrice-zonePrice))
+
+		return [producerSurplus,consumerSurplus]
+
 			
-			if (country not in consumerSurplusDict.keys()): ##Add the country if it doesn't already exist 
-				consumerSurplusDict[country]=node.consumerSurplus
-				producerSurplusDict[country]=node.producerSurplus
-			else:
-				consumerSurplusDict[country]+= node.consumerSurplus
-				producerSurplusDict[country]+= node.producerSurplus
-			
+	def calcCongestionRent(self): ##To be debugged!
+		
+	
+	
+		##Calculate the profit of the network company due to export
+		
+		for node in self.nodes:
+
 			for branch in node.branches:
-				cableOwnerProfit += branch.cableOwnerProfit
-		
-		return[consumerSurplusDict, producerSurplusDict, cableOwnerProfit]
-	
+				
+				importNode=filter(lambda x: x.number==branch.toNode, self.nodes)[0] ##Find the node receiving the exported power 
+				
+				if(importNode.country==node.country): ##Skip congestion inside a zone
+					continue
+				
+				export = branch.flow*(branch.flow>0) ##The hours with positive flow (export) remain, the rest (import) are set to 0.
+				
+				##OBS! Is this correct? Should there be a np.abs() here or not? 
+				self.congestionRent += np.sum(export*np.abs(self.zonePrices[importNode.country] - self.zonePrices[node.country])) ##The profit made by the owners of the cable due to export to a high-price area  
 		
 		
 		
