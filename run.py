@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ET
 		
 def main(argv):
 	##This should not be hardcoded!
-	dict={1:'belgium',2:'germany',3:'denmark',4:'uk',5:'uk',6:'netherlands',7:'norway',21:'belgium',22:'germany',23:'denmark',24:'uk',25:'uk',26:'netherlands',27:'norway',28:'germany',29:'denmark',30:'germany',31:'netherlands',91:'norway',92:'denmark',93:'germany',94:'netherlands',95:'belgium',96:'uk',102:'germany',103:'denmark',107:'norway'}
+	dict={1:'be',2:'de',3:'dk',4:'uk',5:'uk',6:'nl',7:'no',21:'be',22:'de',23:'dk',24:'uk',25:'uk',26:'nl',27:'no',28:'de',29:'dk',30:'de',31:'nl',91:'no',92:'dk',93:'de',94:'nl',95:'be',96:'uk',102:'de',103:'dk',107:'no'}
 
 	matFilePath_meshed='C:\\Users\\christiann\\Desktop\\NetOp_Toolbox\\Net-Op DTOC 64bit 2013-02-15\\results_casestudy_meshed\\results.mat'
 	xmlFilePath_meshed='C:\\Users\\christiann\\Desktop\\NetOp_Toolbox\\Net-Op DTOC 64bit 2013-02-15\\results_casestudy_meshed\\case_auto.xml'   ##The auto-generated xml file where all the new nodes and branches are also listed
@@ -32,6 +32,35 @@ def main(argv):
 	northSea_radial=Network.Network(matFilePath_radial,xmlFilePath_radial,dict)
 	print ""
 	print ""
+	
+
+	# b= sum(northSea_meshed.nodes[6].branches[0].flow)
+	print ""
+	# b+= sum(northSea_meshed.nodes[6].branches[1].flow)
+	print ""
+	# a=sum(northSea_meshed.nodes[6].generators[0].prod)
+	print ""
+	# c= sum(northSea_meshed.nodes[6].load)
+	# print a-b, c
+	# for i in range(7):
+		# a=northSea_meshed.nodes[i].generators[0].prod
+
+		# b=northSea_radial.nodes[i].generators[0].prod
+	
+	
+		# print a==b
+		# d=0
+		# c=0
+		# for i in a==b:
+			# if(i):
+				# d+=1
+				# c+=1
+				# continue
+			# print str(b[c])+"	"+str(a[c])
+			# c+=1
+		# print ""
+		# print 100-d
+	
 	# print northSea_meshed.congestionRent
 	# print northSea_radial.congestionRent
 	
@@ -42,7 +71,7 @@ def main(argv):
 	# print northSea_radial.zoneSurplus
 	
 	# print ""
-	# print sum(northSea_radial.systemPrice)/len(northSea_radial.systemPrice)
+	# print northSea_radial.systemPrice
 	# print ""
 	# print sum(northSea_meshed.systemPrice)/len(northSea_meshed.systemPrice)
 	
@@ -55,8 +84,9 @@ def main(argv):
 		# pr+=northSea_meshed.zoneSurplus[zone][0]
 		# cons+=northSea_meshed.zoneSurplus[zone][1]
 	
-	#	plt.plot(t,northSea_meshed.zonePrices[zone])
+		# plt.plot(t,northSea_meshed.zonePrices[zone]/northSea_meshed.systemPrice)
 	
+	# plt.show()
 	# print pr, northSea_meshed.systemProdSurplus
 	# print cons, northSea_meshed.systemConsSurplus
 	
@@ -81,7 +111,7 @@ def compare(radial, meshed):
 	
 	
 	for zone in radial.zoneSurplus.keys():
-		labels.append(zone[:2])
+		labels.append(zone)
 		cons1.append(radial.zoneSurplus[zone][1])
 		cons2.append(meshed.zoneSurplus[zone][1])
 		prod1.append(radial.zoneSurplus[zone][0])
@@ -122,7 +152,7 @@ def compare(radial, meshed):
 	#axCons.legend((cons1Bars[0],cons2Bars[0]),("radial","meshed"))
 
 	
-	plt.savefig("consumer.png")	
+	#plt.savefig("consumer.png")	
 	
 	figProd, axProd = plt.subplots()
 	
@@ -136,7 +166,7 @@ def compare(radial, meshed):
 	axProd.set_xticklabels(labels)
 	#axProd.legend((prod1Bars[0],prod2Bars[0]),("radial","meshed"))
 
-	plt.savefig("producer.png")	
+	#plt.savefig("producer.png")	
 	
 	labels.append('Con.Rent')
 	placement=np.arange(len(labels))
@@ -156,7 +186,14 @@ def compare(radial, meshed):
 	#axTot.legend((totRadBars[0],totMeshedBars[0]),("radial","meshed"))
 
 		
-	plt.savefig("total.png")	
+	#plt.savefig("total.png")	
+	t=range(radial.sampleSize)
+	plt.figure()
+	plt.plot(t,radial.systemPrice,'r')
+	plt.plot(t,meshed.systemPrice,'b')
+	
+	
+	plt.show()
 
 
 	

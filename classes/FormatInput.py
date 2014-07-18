@@ -1,6 +1,6 @@
 import scipy.io as io
 import xml.etree.ElementTree as ET
-
+import numpy as np
 
 class FormatInput: ##A class to format the results from netop, so that it may be used to create a Network class
 	
@@ -19,16 +19,18 @@ class FormatInput: ##A class to format the results from netop, so that it may be
 
 		totFlow=self.addFlows(results[6],results[7]) ##Combine the in- and out flow. Netop treats branches as one way connections (when solving the mip), and therefore has two branches for every branch. 
 		branchesToRemove=self.getDeadBranches(totFlow) ##Find branches that are not used (0 flow for all times) 
-
 		totFlow=self.cutDeadBranches(branchesToRemove,totFlow) ##Remove dead branches from both the flow and list of branches
+		
 		branchInput=self.cutDeadBranches(branchesToRemove,branchInput)
-	
+		
+
 		nodeInput=self.cutDeadNodes(branchInput,nodeInput)  ##Remove dead (not connected) nodes. This is based on a trimmed branch list with no dead branches
 	
+
 	
 		generation=map(list,zip(*results[10]))	##Time series of generation. Transposed and converted to list of lists to be in the right format (every row is a generator instead of every column)
-
-		
+		# print generation[1]
+		# print""
 		for i in range(len(branchInput)):  
 			newBranch=[int(branchInput[i][0]), int(branchInput[i][1])] + totFlow[i]	##Add the to and from node numbers and time series flow
 			branchList.append(newBranch)
@@ -37,14 +39,14 @@ class FormatInput: ##A class to format the results from netop, so that it may be
 			newGen=[int(genInput[i][0]), float(genInput[i][3]), float(genInput[i][2])] + generation[i]	##Add node number, marginal cost, max generation and time series of the generator
 			genList.append(newGen) ##Add generator to list
 	
-
+		
 		for node in nodeInput:
 			nodeNumber=int(node[0])
 			country=dict[nodeNumber]
 		
 			newNode=[nodeNumber, country] ##Add node number and country
 			nodeList.append(newNode)
-	
+
 		self.resultsDict={'nodes':nodeList, 'branches':branchList, 'generation':genList} ##The finished input is put in  a dict to be used by Network
 		
 
@@ -54,7 +56,8 @@ class FormatInput: ##A class to format the results from netop, so that it may be
 		deadBranches=[]
 
 		for i in range(len(flowInput)):
-			if(not any(flowInput[i])): ##If the flow is 0 for all time steps, the branch is dead
+			rounded=np.round(flowInput[i]) ##To still cut branches with minuscule flow caused by float point errors 
+			if(not any(rounded)): ##If the flow is 0 for all time steps, the branch is dead
 				deadBranches.append(i) ##Put the row number of the dead branch in the list
 
 	
@@ -74,7 +77,6 @@ class FormatInput: ##A class to format the results from netop, so that it may be
 		safeNodes=[]
 		for branch in trimmedBranchInput: ##Branch input should not have any dead branches
 			safeNodes+=[int(branch[0]),int(branch[1])] ##Put node numbers of all nodes that are connected (not to be removed) in a list
-		 
 	
 		return filter(lambda x: int(x[0]) in safeNodes, nodeInput) ##Find all nodes with node number in the safeNodes list. Filter away the dead ones
 	

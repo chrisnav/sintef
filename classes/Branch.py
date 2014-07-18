@@ -4,8 +4,8 @@ class Branch: ##A tiny class to connect the nodes in the network (aka power cabl
 		self.fromNode = fromNode ##Node number of connection point 1
 		self.toNode = toNode ##Node number of connection point 2
 		self.flow = flow	##Flow in MW from 1 to 2 given as a time series (each element is the flow at that given point in time).
-		
-		
+		# self.maxCap=maxCap ##Maximum capacity
+		# self.congested=0 	##How often the cable is congested (running at max capacity). Number between 0 and 1.  
 		
 		#self.cableOwnerProfit=0   ##This is the profit the company owning the cable makes when trading power between the nodes.
 		

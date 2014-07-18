@@ -47,7 +47,7 @@ class Network:  ##A class to keep track of all nodes in the network
 		print "Calculated the consumer and producer surplus in all zones..."
 
 		self.calcCongestionRent()
-		print "Calculated the total congestion rent between countries...Done!"
+		print "Calculated the total congestion rent between countries..."
 		
 		self.calcSystemSurplus()
 		print "Calculated system surplus...Done!"
@@ -95,6 +95,9 @@ class Network:  ##A class to keep track of all nodes in the network
 			
 			node_from.addNewBranch(node_to,flow) ##This automatically adds a branch in the end node ('node_to') as well. 
 
+##########################################################################
+##########################################################################
+
 
 	def calcSystemSurplus(self):##Calculate the system surplus
 		
@@ -111,55 +114,34 @@ class Network:  ##A class to keep track of all nodes in the network
 		for node in self.nodes:
 			allGenerators+=node.generators ##List of all generators in the system
 			systemLoad+=node.load   ##Time series of total load in the system
-		
+			if node.number<90 and node.number>10:
+				print len(node.generators)
+				print sum(node.load)
 		zeroCostGen=filter(lambda x: x.margCost==0.0, allGenerators)
 		expensiveGen = filter(lambda x: x.margCost>0.0,allGenerators)
-		expensiveGen.sort(key: lambda x: x.margCost)
+		expensiveGen.sort(key = lambda x: x.margCost)
 
 		load=systemLoad[:] ##A copy
-			
+		#print sum(load)
 		for gen in zeroCostGen:
-			load-=gen.prod
-		
-		
+			load-=gen.prod		##Subtract the production of the variable generators
+		#print sum(load)
+
 		for time in range(self.sampleSize):	
 			loadThisHour=load[time]
-			
+
 			for gen in expensiveGen:
 				maxGen=gen.maxGen
-				if(loadThisHour<maxGen): 
+				if(loadThisHour<=maxGen): 
 					self.systemPrice[time]=gen.margCost ##If load<0 at this time, this will wrong. Fixed after loop.
 					break
 					
-				loadThisHour -= maxGen
+				loadThisHour -= maxGen	##If not, subtract max generation from the load
 		
 		self.systemPrice=self.systemPrice*(load>0) ##If the 0 cost generators managed to fill the load at some point in time (load<0), set the system price to 0 at this time
 			
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		for time in range(self.sampleSize):
-			hourPrice=[]		
-			for zone in self.zonePrices.keys():
-				hourPrice.append(self.zonePrices[zone][time]) ##Add all the zone prices for this time in an array
-				
-			self.systemPrice[time]=max(hourPrice) ##The highest price at every hour is the system price
-	
-		allGenerators=[]
-		
-		for node in self.nodes:
-			allGenerators+=node.generators ##List of all generators in the system
-			systemLoad+=node.load   ##Time series of total load in the system
-		
-		
-		[self.systemProdSurplus, self.systemConsSurplus]=self.calcZoneSurplus(self.systemPrice,allGenerators,systemLoad) ##Ration price set to 500 euro/MW
+
+		[self.systemProdSurplus, self.systemConsSurplus]=self.calcZoneSurplus(self.systemPrice,allGenerators,systemLoad) 
 			
 
 	def calcSurplusAllZones(self): ##Calculate the surplus for each zone in the network 
@@ -200,7 +182,7 @@ class Network:  ##A class to keep track of all nodes in the network
 			self.zoneSurplus[zone]=[producerSurplus,consumerSurplus] ##Add to network dictionary
 			
 
-	def calcZonePrice(self, allGenerators):	##Calculate the zone price   WORKS!
+	def calcZonePrice(self, allGenerators):	##Calculate the zone price  
 	##In this calculation, all nodes within a zone are counted as one big node.
 	##This means that we assume no congestion within the zone, so that all nodes have the same node price.
 	##However, this assumption does not always hold for branches from offshore nodes (wind farms) to the mainland.
@@ -266,22 +248,4 @@ class Network:  ##A class to keep track of all nodes in the network
 		
 
 		
-	
-	
-	
-	# def createMargCostDict(self):  ##Dictionary to hold all pairs of generator_type - marginal_cost. Can be improved! Like loading in the keywords first and asking the user for the price... 
-
-		# print "Please enter the types of generators in the network with associated marginal cost."
-		# print "The input should be separated by a space, like this example: solar 0"
-		# print "When all pairs are entered, type in '*' to end."
-
-		# dict={} 
-		# while True:
-			# s=raw_input("Please enter a new pair: ").lower()
-			# if s[0]=='*':
-				# break
-			# [type,margCost]=s.split()
-			# dict[type]=float(margCost)
-		
-		# return dict
 	
