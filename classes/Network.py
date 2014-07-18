@@ -21,6 +21,7 @@ class Network:  ##A class to keep track of all nodes in the network
 		resultsDict=input.resultsDict
 	
 		self.buildNetwork(resultsDict)
+		
 	
 	def buildNetwork(self, resultsDict): ##Create the network
 	
@@ -49,7 +50,8 @@ class Network:  ##A class to keep track of all nodes in the network
 		print "Calculated the total congestion rent between countries...Done!"
 		
 		self.calcSystemSurplus()
-		print "done.s,ldkf"
+		print "Calculated system surplus...Done!"
+	
 	
 	def addAllNodes(self,nodeList): ##Add all nodes in the network
 	
@@ -71,9 +73,10 @@ class Network:  ##A class to keep track of all nodes in the network
 				print "Generator node number "+str(generator[0])+" could not be found! Skipping to next generator..." 
 				continue
 			genCost=generator[1]
-			genTimeseries=np.array(generator[2:])
+			maxGen=generator[2]
+			genTimeseries=np.array(generator[3:])
 			
-			node.addNewGenerator(genCost,genTimeseries)
+			node.addNewGenerator(genCost,maxGen,genTimeseries)
  
 	
 	def addAllBranches(self,branchList): ##Add all branches (connections) in the network
@@ -91,6 +94,72 @@ class Network:  ##A class to keep track of all nodes in the network
 			flow=np.array(branch[2:])						
 			
 			node_from.addNewBranch(node_to,flow) ##This automatically adds a branch in the end node ('node_to') as well. 
+
+
+	def calcSystemSurplus(self):##Calculate the system surplus
+		
+		##The system price will always be equal or higher than the zone prices.
+		##This means that the consumer surplus of the system will always be less than the sum
+		##of the consumer surplus in the zones. The producer surplus will in turn be higher for the 
+		##system than for the combined zones.
+		
+		
+		self.systemPrice=np.zeros(self.sampleSize) 
+		systemLoad=np.zeros(self.sampleSize)
+		allGenerators=[]
+
+		for node in self.nodes:
+			allGenerators+=node.generators ##List of all generators in the system
+			systemLoad+=node.load   ##Time series of total load in the system
+		
+		zeroCostGen=filter(lambda x: x.margCost==0.0, allGenerators)
+		expensiveGen = filter(lambda x: x.margCost>0.0,allGenerators)
+		expensiveGen.sort(key: lambda x: x.margCost)
+
+		load=systemLoad[:] ##A copy
+			
+		for gen in zeroCostGen:
+			load-=gen.prod
+		
+		
+		for time in range(self.sampleSize):	
+			loadThisHour=load[time]
+			
+			for gen in expensiveGen:
+				maxGen=gen.maxGen
+				if(loadThisHour<maxGen): 
+					self.systemPrice[time]=gen.margCost ##If load<0 at this time, this will wrong. Fixed after loop.
+					break
+					
+				loadThisHour -= maxGen
+		
+		self.systemPrice=self.systemPrice*(load>0) ##If the 0 cost generators managed to fill the load at some point in time (load<0), set the system price to 0 at this time
+			
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		for time in range(self.sampleSize):
+			hourPrice=[]		
+			for zone in self.zonePrices.keys():
+				hourPrice.append(self.zonePrices[zone][time]) ##Add all the zone prices for this time in an array
+				
+			self.systemPrice[time]=max(hourPrice) ##The highest price at every hour is the system price
+	
+		allGenerators=[]
+		
+		for node in self.nodes:
+			allGenerators+=node.generators ##List of all generators in the system
+			systemLoad+=node.load   ##Time series of total load in the system
+		
+		
+		[self.systemProdSurplus, self.systemConsSurplus]=self.calcZoneSurplus(self.systemPrice,allGenerators,systemLoad) ##Ration price set to 500 euro/MW
 			
 
 	def calcSurplusAllZones(self): ##Calculate the surplus for each zone in the network 
@@ -101,8 +170,6 @@ class Network:  ##A class to keep track of all nodes in the network
 				continue
 			
 			self.nodesByZones[node.country].append(node)
-			
-
 
 		for zone in self.nodesByZones:
 			
@@ -128,21 +195,23 @@ class Network:  ##A class to keep track of all nodes in the network
 					# print ""
 
 
-			[producerSurplus,consumerSurplus]=self.calcZoneSurplus(zonePrice,allGenerators,totLoad,500) ##Ration price set to 500 euro/MW
+			[producerSurplus,consumerSurplus]=self.calcZoneSurplus(zonePrice,allGenerators,totLoad) 
 			
 			self.zoneSurplus[zone]=[producerSurplus,consumerSurplus] ##Add to network dictionary
 			
 
-	def calcZonePrice(self, allGenerators):	##Calculate the zone price
+	def calcZonePrice(self, allGenerators):	##Calculate the zone price   WORKS!
 	##In this calculation, all nodes within a zone are counted as one big node.
 	##This means that we assume no congestion within the zone, so that all nodes have the same node price.
 	##However, this assumption does not always hold for branches from offshore nodes (wind farms) to the mainland.
 	##In the North Sea case, congestion was observed 25% of the time in one such branch in Germany.
 	
+		#allGenerators=filter(lambda x: x.margCost>0, allGenerators) ##Remove all 0 cost generators, they have variable production which might be 0 even though the zone produces more expensive power 
 		allGenerators.sort(key=lambda x: x.margCost) ##Sort the generators from lowest to highest marginal cost
 		numbOfGen=len(allGenerators)
 		zonePrice=[]
-			
+
+		
 		for time in range(self.sampleSize): ##We need the zone price at every time step
 			alreadyAdded=False
 			for i in range(numbOfGen):
@@ -153,29 +222,29 @@ class Network:  ##A class to keep track of all nodes in the network
 					zonePrice.append(allGenerators[i-1].margCost)
 					alreadyAdded=True
 					break 			##Go to the next timestep
-			
+
 			if(not alreadyAdded):
 				zonePrice.append(allGenerators[numbOfGen].margCost) ##If all generators are producing, the one with the highest price will set the zone price
 		
 		return np.array(zonePrice)
 			
 	
-	def calcZoneSurplus(self,zonePrice,allGenerators,totLoad,rationPrice): ##Calculate the zone surplus
-		
+	def calcZoneSurplus(self,zonePrice,allGenerators,totLoad): ##Calculate the zone surplus
 		
 		producerSurplus=0
-		#totGen=np.zeros(sampleSize)
-
+		rationPrice=self.nodes[0].RATION_PRICE  ##Ration price set to 500 euro/MW, see Node class
+		
 		for gen in allGenerators:
-			production = gen.prod
-		#	totGen+=production
-			producerSurplus+=np.sum(production*(zonePrice-gen.margCost))		
+			producerSurplus+=np.sum(gen.prod*(zonePrice-gen.margCost))		
 		
 		consumerSurplus=np.sum(totLoad*(rationPrice-zonePrice))
 
 		return [producerSurplus,consumerSurplus]
 
-			
+###########################################################################
+###############All is fine above this line...I think#######################
+###########################################################################		
+
 	def calcCongestionRent(self): ##To be debugged!
 		##Calculate the net owner's profit due to congestion in the cables (limited cable capacity)
 		##Here we ignore congestion within a zone because it is neglected when calculating the zone price.
@@ -195,26 +264,7 @@ class Network:  ##A class to keep track of all nodes in the network
 				##OBS! Is this correct? Should there be a np.abs() here or not? 
 				self.congestionRent += np.sum(export*np.abs(self.zonePrices[importNode.country] - self.zonePrices[node.country])) ##The profit made by the owners of the cable due to export to a high-price area  
 		
-		
-	def calcSystemSurplus(self):## Is this a relevant parameter to consider? system surplus!=sum(zone surplus)
-		
-		self.systemPrice=np.zeros(self.sampleSize)
-		systemLoad=np.zeros(self.sampleSize)
-		
-		for time in range(self.sampleSize):
-			hourPrice=[]
-			for zone in self.zonePrices.keys():
-				hourPrice.append(self.zonePrices[zone][time])
-				
-			self.systemPrice[time]=max(hourPrice)
-	
-		allGenerators=[]
-		
-		for node in self.nodes:
-			allGenerators+=node.generators
-			systemLoad+=node.load
-		
-		[self.systemProdSurplus, self.systemConsSurplus]=self.calcZoneSurplus(self.systemPrice,allGenerators,systemLoad,500)
+
 		
 	
 	

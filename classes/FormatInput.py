@@ -34,7 +34,7 @@ class FormatInput: ##A class to format the results from netop, so that it may be
 			branchList.append(newBranch)
 	
 		for i in range(len(genInput)):
-			newGen=[int(genInput[i][0]), float(genInput[i][3])] + generation[i]	##Add node number, marginal cost and time series of the generator
+			newGen=[int(genInput[i][0]), float(genInput[i][3]), float(genInput[i][2])] + generation[i]	##Add node number, marginal cost, max generation and time series of the generator
 			genList.append(newGen) ##Add generator to list
 	
 

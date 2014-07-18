@@ -4,7 +4,7 @@ import numpy as np
 
 class Node:
 
-	rationPrice=3
+	RATION_PRICE=500
 	
 	def __init__ (self, number, country):
 		self.number=number ##A number to label the node
@@ -20,8 +20,8 @@ class Node:
 		self.branches.append(newBranch)
 		toNode.branches.append(invBranch)	##Also add branch in the other node
 	
-	def addNewGenerator(self, margCost, prod):  ##Add a generator in the node
-		newGen = Generator.Generator(margCost, prod)
+	def addNewGenerator(self, margCost, maxGeno, prod):  ##Add a generator in the node
+		newGen = Generator.Generator(margCost,maxGeno, prod)
 		self.generators.append(newGen)
 		
 
@@ -30,9 +30,9 @@ class Node:
 		##OBS! In the case of generators with variable production (wind, solar...), any harvested power	
 		##that is not actually needed/used will be counted as a load! This is because this function 
 		##assumes that power is conserved in every node (flow in + generation = load + flow out).
-		##This will however not be a problem when summing up all load and generation in a zone,
-		##the 'fake' load will be absorbed by the 'fake' production.
-	
+		##This will lead to a higher value for both the producer and consumer surplus because we
+		##have too high generation and too high load.
+			
 	
 		sampleSize=len(self.branches[0].flow) 
 		
