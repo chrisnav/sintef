@@ -47,13 +47,10 @@ class Node:
 		
 		self.load=totGen-totFlow		##flow>0 -> export. load = generated power in node - net flow out
 
-		# if len(self.generators)==1:
-			# if self.generators[0].margCost==0.0:
-				# self.generators[0].prod -= self.load 
-				# self.load=np.zeros(sampleSize)		
-		
-		# if len(self.generators)==0:
+		# if self.number<90 or self.number>100:
 			# self.load=np.zeros(sampleSize)
+		
+
 		
 			
 	

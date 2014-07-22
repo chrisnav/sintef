@@ -2,16 +2,16 @@ import scipy.io as io
 import xml.etree.ElementTree as ET
 import numpy as np
 
-class FormatInput: ##A class to format the results from netop, so that it may be used to create a Network class
+class FormatResults: ##A class to format the results from netop, so that it may be used to create a Network class
 	
 	def __init__ (self,matFilePath,xmlFilePath,dict): 
 		
-		nodeList=[]								 ##The xml-file should be the 'case_auto.xml' file that is created after running netop 
-		branchList=[]							 ##The mat-file should be the 'results.mat' file that is created after running netop 
+		nodeList=[]			 ##The xml-file (xmlFilePath) should be the 'case_auto.xml' file that is created after running netop 
+		branchList=[]		 ##The mat-file (matFilePath) should be the 'results.mat' file that is created after running netop 
 		genList=[]
 	
 		mat=io.loadmat(matFilePath)		##Load in mat file as a dict
-		results=mat['results'][0][0]	##Contains the info about the time series of generation and flow
+		results=mat['results'][0][0]	##Contains all the relevant info about the time series of generation and flow
 	
 		nodeInput=self.getInput(xmlFilePath,'node')   ##Get basic node info. Contains all _allowable_ nodes, needs to be cut (see below)
 		branchInput=self.getInput(xmlFilePath,'branch') ##Get basic branch info. Contains all _allowable_ branches, needs to be cut (see below)
@@ -29,8 +29,7 @@ class FormatInput: ##A class to format the results from netop, so that it may be
 
 	
 		generation=map(list,zip(*results[10]))	##Time series of generation. Transposed and converted to list of lists to be in the right format (every row is a generator instead of every column)
-		# print generation[1]
-		# print""
+
 		for i in range(len(branchInput)):  
 			newBranch=[int(branchInput[i][0]), int(branchInput[i][1])] + totFlow[i]	##Add the to and from node numbers and time series flow
 			branchList.append(newBranch)

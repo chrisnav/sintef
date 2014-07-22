@@ -1,5 +1,5 @@
 import Node
-import FormatInput
+import FormatResults
 import numpy as np
 
 
@@ -17,10 +17,9 @@ class Network:  ##A class to keep track of all nodes in the network
 		self.congestionRent=0 ##Total congestion rent between zones
 		
 
-		input=FormatInput.FormatInput(matFilePath,xmlFilePath,dict)
-		resultsDict=input.resultsDict
-	
-		self.buildNetwork(resultsDict)
+		input=FormatResults.FormatResults(matFilePath,xmlFilePath,dict)
+		
+		self.buildNetwork(input.resultsDict)
 		
 	
 	def buildNetwork(self, resultsDict): ##Create the network
@@ -114,30 +113,27 @@ class Network:  ##A class to keep track of all nodes in the network
 		for node in self.nodes:
 			allGenerators+=node.generators ##List of all generators in the system
 			systemLoad+=node.load   ##Time series of total load in the system
-			if node.number<90 and node.number>10:
-				print len(node.generators)
-				print sum(node.load)
-		zeroCostGen=filter(lambda x: x.margCost==0.0, allGenerators)
-		expensiveGen = filter(lambda x: x.margCost>0.0,allGenerators)
-		expensiveGen.sort(key = lambda x: x.margCost)
+
+		zeroCostGen=filter(lambda x: x.margCost==0.0, allGenerators) ##Variable production generators (solar, wind)
+		expensiveGen = filter(lambda x: x.margCost>0.0,allGenerators) ##Other power sources
+		expensiveGen.sort(key = lambda x: x.margCost) ##Sort from low to high marginal cost
 
 		load=systemLoad[:] ##A copy
-		#print sum(load)
+
 		for gen in zeroCostGen:
-			load-=gen.prod		##Subtract the production of the variable generators
-		#print sum(load)
+			load-=gen.prod		##Subtract the _production_ of the variable generators, not the max capacity. 
+
 
 		for time in range(self.sampleSize):	
-			loadThisHour=load[time]
+			loadThisHour=load[time]		##Load every time step
 
 			for gen in expensiveGen:
 				maxGen=gen.maxGen
-				if(loadThisHour<=maxGen): 
-					self.systemPrice[time]=gen.margCost ##If load<0 at this time, this will wrong. Fixed after loop.
+				if(loadThisHour<=maxGen): ##We have reached the last needed generator if it can cover the remaining demand in the zone.
+					self.systemPrice[time]=gen.margCost ##If load<0 at this time, this will wrong. This may happen if the demand is met by wind and solar energy. Fixed after loop.
 					break
 					
-				loadThisHour -= maxGen	##If not, subtract max generation from the load
-		
+				loadThisHour -= maxGen	##If the generator can't cover the remaining load, subtract the generators max generation. 
 		self.systemPrice=self.systemPrice*(load>0) ##If the 0 cost generators managed to fill the load at some point in time (load<0), set the system price to 0 at this time
 			
 
@@ -166,16 +162,6 @@ class Network:  ##A class to keep track of all nodes in the network
 			
 			zonePrice=self.calcZonePrice(allGenerators) ##Calculate the zone price.
 			self.zonePrices[zone]=zonePrice
-			
-			# if(zone=="NORWAY"):
-				# print zonePrice
-				# print ""
-				
-				# for gen in allGenerators:
-					# print gen.margCost
-					# print gen.prod
-					# print ""
-
 
 			[producerSurplus,consumerSurplus]=self.calcZoneSurplus(zonePrice,allGenerators,totLoad) 
 			
@@ -217,7 +203,10 @@ class Network:  ##A class to keep track of all nodes in the network
 		rationPrice=self.nodes[0].RATION_PRICE  ##Ration price set to 500 euro/MW, see Node class
 		
 		for gen in allGenerators:
-			producerSurplus+=np.sum(gen.prod*(zonePrice-gen.margCost))		
+			cost=gen.margCost
+			if(cost==20 or cost==40): ##There is no real marginal cost for producing hydro power. 
+				cost=0.0			  ##OBS! These values are hard coded for a specific case since there are no markers to distinguish different types of generators in the input/results from netop (at the moment).
+			producerSurplus+=np.sum(gen.prod*(zonePrice-cost))		
 		
 		consumerSurplus=np.sum(totLoad*(rationPrice-zonePrice))
 
