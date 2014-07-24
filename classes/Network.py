@@ -1,5 +1,5 @@
 import Node
-import FormatResults
+import FormatInput
 import numpy as np
 
 
@@ -17,7 +17,7 @@ class Network:  ##A class to keep track of all nodes in the network
 		self.congestionRent=0 ##Total congestion rent between zones
 		
 
-		input=FormatResults.FormatResults(matFilePath,xmlFilePath,dict)
+		input=FormatInput.FormatInput(matFilePath,xmlFilePath,dict)
 		
 		self.buildNetwork(input.resultsDict)
 		
@@ -118,7 +118,7 @@ class Network:  ##A class to keep track of all nodes in the network
 		expensiveGen = filter(lambda x: x.margCost>0.0,allGenerators) ##Other power sources
 		expensiveGen.sort(key = lambda x: x.margCost) ##Sort from low to high marginal cost
 
-		load=systemLoad[:] ##A copy
+		load=list(systemLoad) ##A copy
 
 		for gen in zeroCostGen:
 			load-=gen.prod		##Subtract the _production_ of the variable generators, not the max capacity. 
@@ -136,7 +136,7 @@ class Network:  ##A class to keep track of all nodes in the network
 				loadThisHour -= maxGen	##If the generator can't cover the remaining load, subtract the generators max generation. 
 		self.systemPrice=self.systemPrice*(load>0) ##If the 0 cost generators managed to fill the load at some point in time (load<0), set the system price to 0 at this time
 			
-
+		
 		[self.systemProdSurplus, self.systemConsSurplus]=self.calcZoneSurplus(self.systemPrice,allGenerators,systemLoad) 
 			
 
@@ -186,7 +186,7 @@ class Network:  ##A class to keep track of all nodes in the network
 				gen=allGenerators[i]
 				if (gen.margCost==0): ##Skip past all generators with 0 marginal cost, they have variable production which might be 0 even though the zone produces more expensive power 
 					continue
-				if(gen.prod[time]==0.0): ##The first generator that produces 0 power (and is not of variable production) is the first generator that has too high a price. The marginal cost of the previous one will be the zone price 
+				if(gen.prod[time]==0.0): ##The first generator that produces 0 power (and is not of variable production) is the first generator that has too high a price. The marginal cost of the previous one will set the zone price 
 					zonePrice.append(allGenerators[i-1].margCost)
 					alreadyAdded=True
 					break 			##Go to the next timestep
@@ -233,8 +233,18 @@ class Network:  ##A class to keep track of all nodes in the network
 				export = branch.flow*(branch.flow>0) ##The hours with positive flow (export) remain, the rest (import) are set to 0.
 				
 				##OBS! Is this correct? Should there be a np.abs() here or not? 
-				self.congestionRent += np.sum(export*np.abs(self.zonePrices[importNode.country] - self.zonePrices[node.country])) ##The profit made by the owners of the cable due to export to a high-price area  
-		
+				self.congestionRent = np.sum(export*(self.zonePrices[importNode.country] - self.zonePrices[node.country])) ##The profit made by the owners of the cable due to export to a high-price area  
+				# c=[]
+				# for i in range(len(export)):
+					# if(export[i]>0 and (self.zonePrices[importNode.country] - self.zonePrices[node.country])[i]<0):
+						# c.append(i)
+				# if len(c)>0:
+					# print str(node.number)+"	"+str(importNode.number)
+					# print c
+					# print ""
+					
+
+
 
 		
 	

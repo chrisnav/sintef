@@ -2,7 +2,7 @@ import scipy.io as io
 import xml.etree.ElementTree as ET
 import numpy as np
 
-class FormatResults: ##A class to format the results from netop, so that it may be used to create a Network class
+class FormatInput: ##A class to format the results from netop, so that it may be used to create a Network class
 	
 	def __init__ (self,matFilePath,xmlFilePath,dict): 
 		
@@ -17,10 +17,11 @@ class FormatResults: ##A class to format the results from netop, so that it may 
 		branchInput=self.getInput(xmlFilePath,'branch') ##Get basic branch info. Contains all _allowable_ branches, needs to be cut (see below)
 		genInput=self.getInput(xmlFilePath,'base_geno') ##Get basic generator info, contains all generators (no cutting needed)
 
+
 		totFlow=self.addFlows(results[6],results[7]) ##Combine the in- and out flow. Netop treats branches as one way connections (when solving the mip), and therefore has two branches for every branch. 
 		branchesToRemove=self.getDeadBranches(totFlow) ##Find branches that are not used (0 flow for all times) 
 		totFlow=self.cutDeadBranches(branchesToRemove,totFlow) ##Remove dead branches from both the flow and list of branches
-		
+
 		branchInput=self.cutDeadBranches(branchesToRemove,branchInput)
 		
 
@@ -34,6 +35,8 @@ class FormatResults: ##A class to format the results from netop, so that it may 
 			newBranch=[int(branchInput[i][0]), int(branchInput[i][1])] + totFlow[i]	##Add the to and from node numbers and time series flow
 			branchList.append(newBranch)
 	
+		# braanchList=self.removeLosses(branchList,branchInput)
+		
 		for i in range(len(genInput)):
 			newGen=[int(genInput[i][0]), float(genInput[i][3]), float(genInput[i][2])] + generation[i]	##Add node number, marginal cost, max generation and time series of the generator
 			genList.append(newGen) ##Add generator to list
@@ -123,7 +126,18 @@ class FormatResults: ##A class to format the results from netop, so that it may 
 		
 		return lines
 	
-
+	# def removeLosses(self, branchList, branchInput):
+		# sampleSize=len(branchList[0])-2
+		
+		# for i in range(len(branchList)):
+			# loss=1-float(branchInput[i][4])
+			# if loss==1:
+				# continue
+			# for time in range(sampleSize):
+				# branchList[i][time+2]*=loss
+			
+		
+		# return branchList
 	
 	
 	
