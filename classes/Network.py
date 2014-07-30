@@ -38,6 +38,7 @@ class Network:  ##A class to keep track of all nodes in the network
 		print "Added branches..."
 		
 		self.sampleSize=len(self.nodes[0].branches[0].flow)
+		
 		for node in self.nodes:
 			node.calcLoad()
 		print "Calculated load in all nodes..."
